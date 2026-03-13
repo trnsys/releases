@@ -1,0 +1,17 @@
+# TRNSYS Release Manifest
+#
+# Pins component versions for bundle assembly.
+# The assembly workflow reads this file to know which version of each component to fetch.
+# Update versions here, commit, then tag to trigger a new release.
+
+[release]
+version = "19.0.0-alpha.1"
+
+[components]
+kernel = "v0.2.1"
+engine = "v0.2.1"
+standard-types = "v0.1.0"
+solar-calcs = "v0.1.0"
+nist-steam = "v0.1.0"
+coolprop = "v6.6.0"
+trnexe = "v0.1.0"
