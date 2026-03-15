@@ -5,7 +5,7 @@
 # Update versions here, commit, then tag to trigger a new release.
 
 [release]
-version = "19.0.0-alpha.1"
+version = "19.0.0-alpha.2"
 
 [components]
 kernel = "v0.2.1"
