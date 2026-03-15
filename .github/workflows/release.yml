@@ -19,7 +19,7 @@ jobs:
           version=$(grep '^version' manifest.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-          for component in kernel engine standard-types solar-calcs nist-steam coolprop trnexe; do
+          for component in kernel engine standard-types solar-calcs fluid-properties trnexe; do
             tag=$(grep "^${component} " manifest.toml | sed 's/.*= *"\(.*\)"/\1/')
             # Normalize key: standard-types -> standard_types
             key=$(echo "$component" | tr '-' '_')
@@ -33,7 +33,7 @@ jobs:
           app-id: ${{ secrets.TRN_RELEASE_APP_ID }}
           private-key: ${{ secrets.TRN_RELEASE_APP_KEY }}
           owner: trnsys
-          repositories: kernel,engine,standard-types,solar-calcs,nist-steam,coolprop,trnexe
+          repositories: kernel,engine,standard-types,solar-calcs,fluid-properties,trnexe
 
       - name: Download component artifacts
         env:
@@ -62,13 +62,9 @@ jobs:
             --repo trnsys/solar-calcs \
             --pattern "solar_calcs-macos-runtime.tar.gz" --dir dl/
 
-          gh release download ${{ steps.manifest.outputs.nist_steam_tag }} \
-            --repo trnsys/nist-steam \
-            --pattern "nist_steam-macos-runtime.tar.gz" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.coolprop_tag }} \
-            --repo trnsys/coolprop \
-            --pattern "coolprop-macos-arm64-runtime.tar.gz" --dir dl/
+          gh release download ${{ steps.manifest.outputs.fluid_properties_tag }} \
+            --repo trnsys/fluid-properties \
+            --pattern "fluid-properties-macos-arm64-runtime.tar.gz" --dir dl/
 
           gh release download ${{ steps.manifest.outputs.trnexe_tag }} \
             --repo trnsys/trnexe \
@@ -91,13 +87,9 @@ jobs:
             --repo trnsys/solar-calcs \
             --pattern "solar_calcs-windows-runtime.zip" --dir dl/
 
-          gh release download ${{ steps.manifest.outputs.nist_steam_tag }} \
-            --repo trnsys/nist-steam \
-            --pattern "nist_steam-windows-runtime.zip" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.coolprop_tag }} \
-            --repo trnsys/coolprop \
-            --pattern "coolprop-windows-runtime.zip" --dir dl/
+          gh release download ${{ steps.manifest.outputs.fluid_properties_tag }} \
+            --repo trnsys/fluid-properties \
+            --pattern "fluid-properties-windows-x64-runtime.zip" --dir dl/
 
           gh release download ${{ steps.manifest.outputs.trnexe_tag }} \
             --repo trnsys/trnexe \
@@ -112,8 +104,7 @@ jobs:
           tar -xzf dl/engine-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
           tar -xzf dl/standard-types-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
           tar -xzf dl/solar_calcs-macos-runtime.tar.gz -C bundle-macos/bin/
-          tar -xzf dl/nist_steam-macos-runtime.tar.gz -C bundle-macos/bin/
-          tar -xzf dl/coolprop-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
+          tar -xzf dl/fluid-properties-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
           tar -xzf dl/trnexe-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
 
           # Extract resources
@@ -132,8 +123,7 @@ jobs:
           unzip -o ../../dl/engine-windows-runtime.zip
           unzip -o ../../dl/standard-types-windows-runtime.zip
           unzip -o ../../dl/solar_calcs-windows-runtime.zip
-          unzip -o ../../dl/nist_steam-windows-runtime.zip
-          unzip -o ../../dl/coolprop-windows-runtime.zip
+          unzip -o ../../dl/fluid-properties-windows-x64-runtime.zip
           unzip -o ../../dl/trnexe-windows-runtime.zip
           cd ../..
 
