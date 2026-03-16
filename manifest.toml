@@ -5,7 +5,7 @@
 # Update versions here, commit, then tag to trigger a new release.
 
 [release]
-version = "19.0.0-alpha.2"
+version = "19.0.0-alpha.3"
 
 [components]
 kernel = "v0.2.1"
@@ -13,4 +13,4 @@ engine = "v0.2.1"
 standard-types = "v0.1.0"
 solar-calcs = "v0.1.0"
 fluid-properties = "v0.1.0"
-trnexe = "v0.1.0"
+trnexe = "v0.2.0"
