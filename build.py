@@ -33,6 +33,16 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 RUNTIME_CSTB = SCRIPT_DIR / ".." / "runtime-cstb"
 RUNTIME_TRANSSOLAR = SCRIPT_DIR / ".." / "runtime-transsolar"
+INTEL_RUNTIME = SCRIPT_DIR / "intel-fortran-runtime"
+
+INTEL_DLLS = [
+    "libifcoremd.dll",
+    "libifcoremdd.dll",
+    "libifportmd.dll",
+    "libmmd.dll",
+    "libmmdd.dll",
+    "svml_dispmd.dll",
+]
 
 
 def main():
@@ -42,6 +52,10 @@ def main():
         die(f"ERROR: runtime-cstb not found at {RUNTIME_CSTB}")
     if not RUNTIME_TRANSSOLAR.is_dir():
         die(f"ERROR: runtime-transsolar not found at {RUNTIME_TRANSSOLAR}")
+
+    missing_dlls = [dll for dll in INTEL_DLLS if not (INTEL_RUNTIME / dll).is_file()]
+    if missing_dlls:
+        die(f"ERROR: missing Intel Fortran runtime DLLs in {INTEL_RUNTIME}: {missing_dlls}")
 
     # ── parse manifest ─────────────────────────────────────────────────────────
 
@@ -155,6 +169,12 @@ def main():
     with tarfile.open(dl / "kernel-resources.tar.gz", "r:gz") as tf:
         tf.extractall(bundle_windows / "Resources")
 
+    # Copy Intel Fortran runtime DLLs and license into Exe/
+    print("    Copying Intel Fortran runtime DLLs...")
+    for dll in INTEL_DLLS:
+        shutil.copy2(INTEL_RUNTIME / dll, bundle_windows / "Exe" / dll)
+    shutil.copy2(INTEL_RUNTIME / "LICENSE.txt", bundle_windows / "Exe" / "LICENSE-intel-fortran-runtime.txt")
+
     shutil.copytree(RUNTIME_CSTB / "studio",        bundle_windows / "Studio")
     shutil.copytree(RUNTIME_TRANSSOLAR / "building", bundle_windows / "Building")
 
@@ -177,7 +197,7 @@ def main():
             if p.is_file():
                 zf.write(p, p.relative_to(bundle_macos))
 
-    windows_zip = SCRIPT_DIR / "trnsys-windows.zip"
+    windows_zip = SCRIPT_DIR / "trnsys-windows-x64.zip"
     with zipfile.ZipFile(windows_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for p in sorted(bundle_windows.rglob("*")):
             if p.is_file():
@@ -213,7 +233,7 @@ def main():
     print(f'      --title "TRNSYS {version}" \\')
     print(f"      --generate-notes \\")
     print(f"      trnsys-macos-arm64.zip \\")
-    print(f"      trnsys-windows.zip \\")
+    print(f"      trnsys-windows-x64.zip \\")
     print(f"      SHA256SUMS.txt")
     print()
 

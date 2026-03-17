@@ -147,6 +147,10 @@ jobs:
           mkdir -p dl/runtime-transsolar-src
           tar -xzf dl/runtime-transsolar.tar.gz -C dl/runtime-transsolar-src/ --strip-components=1
 
+          # Copy Intel Fortran runtime DLLs and license into Exe/
+          cp intel-fortran-runtime/*.dll            bundle-windows/Exe/
+          cp intel-fortran-runtime/LICENSE.txt      bundle-windows/Exe/LICENSE-intel-fortran-runtime.txt
+
           cp -r dl/runtime-cstb-src/studio        bundle-windows/Studio
           cp -r dl/runtime-transsolar-src/building bundle-windows/Building
 
@@ -159,7 +163,7 @@ jobs:
       - name: Package bundles
         run: |
           cd bundle-macos && zip -r ../trnsys-macos-arm64.zip . && cd ..
-          cd bundle-windows && zip -r ../trnsys-windows.zip . && cd ..
+          cd bundle-windows && zip -r ../trnsys-windows-x64.zip . && cd ..
 
           echo "=== Final packages ==="
           ls -lh trnsys-*.zip
@@ -175,5 +179,5 @@ jobs:
             --title "TRNSYS ${{ steps.manifest.outputs.version }}" \
             --generate-notes \
             trnsys-macos-arm64.zip \
-            trnsys-windows.zip \
+            trnsys-windows-x64.zip \
             SHA256SUMS.txt
