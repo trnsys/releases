@@ -1,0 +1,7 @@
+dl/
+bundle-macos/
+bundle-windows/
+trnsys-*.zip
+SHA256SUMS.txt
+__pycache__/
+*.pyc

@@ -19,7 +19,7 @@ jobs:
           version=$(grep '^version' manifest.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-          for component in kernel engine standard-types solar-calcs fluid-properties trnexe; do
+          for component in kernel engine standard-types solar-calcs fluid-properties trnexe runtime-cstb runtime-transsolar; do
             tag=$(grep "^${component} " manifest.toml | sed 's/.*= *"\(.*\)"/\1/')
             # Normalize key: standard-types -> standard_types
             key=$(echo "$component" | tr '-' '_')
@@ -33,7 +33,7 @@ jobs:
           app-id: ${{ secrets.TRN_RELEASE_APP_ID }}
           private-key: ${{ secrets.TRN_RELEASE_APP_KEY }}
           owner: trnsys
-          repositories: kernel,engine,standard-types,solar-calcs,fluid-properties,trnexe
+          repositories: kernel,engine,standard-types,solar-calcs,fluid-properties,trnexe,runtime-cstb,runtime-transsolar
 
       - name: Download component artifacts
         env:
@@ -95,6 +95,13 @@ jobs:
             --repo trnsys/trnexe \
             --pattern "trnexe-windows-runtime.zip" --dir dl/
 
+          # ── vendor runtime repo archives ──
+          gh api repos/trnsys/runtime-cstb/tarball/${{ steps.manifest.outputs.runtime_cstb_tag }} \
+            > dl/runtime-cstb.tar.gz
+
+          gh api repos/trnsys/runtime-transsolar/tarball/${{ steps.manifest.outputs.runtime_transsolar_tag }} \
+            > dl/runtime-transsolar.tar.gz
+
       - name: Assemble macOS arm64 bundle
         run: |
           mkdir -p bundle-macos/{bin,resources}
@@ -129,6 +136,23 @@ jobs:
 
           # Extract resources
           tar -xzf dl/kernel-resources.tar.gz -C bundle-windows/Resources/
+
+          # ── vendor runtime content ──
+
+          # Extract runtime-cstb archive (GitHub tarball has a top-level prefix dir)
+          mkdir -p dl/runtime-cstb-src
+          tar -xzf dl/runtime-cstb.tar.gz -C dl/runtime-cstb-src/ --strip-components=1
+
+          # Extract runtime-transsolar archive
+          mkdir -p dl/runtime-transsolar-src
+          tar -xzf dl/runtime-transsolar.tar.gz -C dl/runtime-transsolar-src/ --strip-components=1
+
+          cp -r dl/runtime-cstb-src/studio        bundle-windows/Studio
+          cp -r dl/runtime-transsolar-src/building bundle-windows/Building
+
+          mkdir -p bundle-windows/UserLib
+          cp -r dl/runtime-cstb-src/type/.        bundle-windows/UserLib/
+          cp -r dl/runtime-transsolar-src/type/.   bundle-windows/UserLib/
 
           echo "=== Windows bundle ==="
           find bundle-windows -type f | sort
