@@ -160,7 +160,6 @@ def main():
 
     userlib = bundle_windows / "UserLib"
     userlib.mkdir()
-    shutil.copytree(RUNTIME_CSTB / "type",      userlib, dirs_exist_ok=True)
     shutil.copytree(RUNTIME_TRANSSOLAR / "type", userlib, dirs_exist_ok=True)
 
     print("    Windows bundle contents:")

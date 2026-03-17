@@ -151,7 +151,6 @@ jobs:
           cp -r dl/runtime-transsolar-src/building bundle-windows/Building
 
           mkdir -p bundle-windows/UserLib
-          cp -r dl/runtime-cstb-src/type/.        bundle-windows/UserLib/
           cp -r dl/runtime-transsolar-src/type/.   bundle-windows/UserLib/
 
           echo "=== Windows bundle ==="
