@@ -16,7 +16,7 @@ Usage:
 
 Output:
     trnsys-macos-arm64.zip
-    trnsys-windows.zip
+    trnsys-windows-x64.zip
     SHA256SUMS.txt
 
 At the end, the script prints the `gh release create` command to run manually.
@@ -97,16 +97,16 @@ def main():
         (kernel_tag,           "trnsys/kernel",           "kernel-resources.tar.gz"),
         (engine_tag,           "trnsys/engine",           "engine-macos-arm64-runtime.tar.gz"),
         (standard_types_tag,   "trnsys/standard-types",   "standard-types-macos-arm64-runtime.tar.gz"),
-        (solar_calcs_tag,      "trnsys/solar-calcs",      "solar_calcs-macos-runtime.tar.gz"),
+        (solar_calcs_tag,      "trnsys/solar-calcs",      "solar-calcs-macos-arm64-runtime.tar.gz"),
         (fluid_properties_tag, "trnsys/fluid-properties", "fluid-properties-macos-arm64-runtime.tar.gz"),
         (trnexe_tag,           "trnsys/trnexe",           "trnexe-macos-arm64-runtime.tar.gz"),
-        # Windows
-        (kernel_tag,           "trnsys/kernel",           "kernel-windows-runtime.zip"),
-        (engine_tag,           "trnsys/engine",           "engine-windows-runtime.zip"),
-        (standard_types_tag,   "trnsys/standard-types",   "standard-types-windows-runtime.zip"),
-        (solar_calcs_tag,      "trnsys/solar-calcs",      "solar_calcs-windows-runtime.zip"),
+        # Windows x64
+        (kernel_tag,           "trnsys/kernel",           "kernel-windows-x64-runtime.zip"),
+        (engine_tag,           "trnsys/engine",           "engine-windows-x64-runtime.zip"),
+        (standard_types_tag,   "trnsys/standard-types",   "standard-types-windows-x64-runtime.zip"),
+        (solar_calcs_tag,      "trnsys/solar-calcs",      "solar-calcs-windows-x64-runtime.zip"),
         (fluid_properties_tag, "trnsys/fluid-properties", "fluid-properties-windows-x64-runtime.zip"),
-        (trnexe_tag,           "trnsys/trnexe",           "trnexe-windows-runtime.zip"),
+        (trnexe_tag,           "trnsys/trnexe",           "trnexe-windows-x64-runtime.zip"),
     ]
 
     for tag, repo, pattern in downloads:
@@ -127,7 +127,7 @@ def main():
         "kernel-macos-arm64-runtime.tar.gz",
         "engine-macos-arm64-runtime.tar.gz",
         "standard-types-macos-arm64-runtime.tar.gz",
-        "solar_calcs-macos-runtime.tar.gz",
+        "solar-calcs-macos-arm64-runtime.tar.gz",
         "fluid-properties-macos-arm64-runtime.tar.gz",
         "trnexe-macos-arm64-runtime.tar.gz",
     ]:
@@ -156,12 +156,12 @@ def main():
     (bundle_windows / "Resources").mkdir(parents=True)
 
     for name in [
-        "kernel-windows-runtime.zip",
-        "engine-windows-runtime.zip",
-        "standard-types-windows-runtime.zip",
-        "solar_calcs-windows-runtime.zip",
+        "kernel-windows-x64-runtime.zip",
+        "engine-windows-x64-runtime.zip",
+        "standard-types-windows-x64-runtime.zip",
+        "solar-calcs-windows-x64-runtime.zip",
         "fluid-properties-windows-x64-runtime.zip",
-        "trnexe-windows-runtime.zip",
+        "trnexe-windows-x64-runtime.zip",
     ]:
         with zipfile.ZipFile(dl / name) as zf:
             zf.extractall(bundle_windows / "Exe")
