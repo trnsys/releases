@@ -34,6 +34,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 RUNTIME_CSTB = SCRIPT_DIR / ".." / "runtime-cstb"
 RUNTIME_TRANSSOLAR = SCRIPT_DIR / ".." / "runtime-transsolar"
 INTEL_RUNTIME = SCRIPT_DIR / "intel-fortran-runtime"
+GFORTRAN_RUNTIME = SCRIPT_DIR / "gfortran-runtime"
+
+GFORTRAN_DYLIBS = [
+    "libgfortran.5.dylib",
+    "libquadmath.0.dylib",
+]
 
 INTEL_DLLS = [
     "libifcoremd.dll",
@@ -46,18 +52,33 @@ INTEL_DLLS = [
 
 
 def main():
-    # ── sanity checks ──────────────────────────────────────────────────────────
+    # ── platform selection ──────────────
+
+    platforms = set(sys.argv[1:]) if len(sys.argv) > 1 else {"macos", "windows"}
+    valid = {"macos", "windows"}
+    if not platforms.issubset(valid):
+        die(f"Usage: python build.py [macos] [windows]")
+    build_macos = "macos" in platforms
+    build_windows = "windows" in platforms
+
+    # ── sanity checks ─────────────────
 
     if not RUNTIME_CSTB.is_dir():
         die(f"ERROR: runtime-cstb not found at {RUNTIME_CSTB}")
     if not RUNTIME_TRANSSOLAR.is_dir():
         die(f"ERROR: runtime-transsolar not found at {RUNTIME_TRANSSOLAR}")
 
-    missing_dlls = [dll for dll in INTEL_DLLS if not (INTEL_RUNTIME / dll).is_file()]
-    if missing_dlls:
-        die(f"ERROR: missing Intel Fortran runtime DLLs in {INTEL_RUNTIME}: {missing_dlls}")
+    if build_windows:
+        missing_dlls = [dll for dll in INTEL_DLLS if not (INTEL_RUNTIME / dll).is_file()]
+        if missing_dlls:
+            die(f"ERROR: missing Intel Fortran runtime DLLs in {INTEL_RUNTIME}: {missing_dlls}")
 
-    # ── parse manifest ─────────────────────────────────────────────────────────
+    if build_macos:
+        missing_dylibs = [lib for lib in GFORTRAN_DYLIBS if not (GFORTRAN_RUNTIME / lib).is_file()]
+        if missing_dylibs:
+            die(f"ERROR: missing gfortran runtime dylibs in {GFORTRAN_RUNTIME}: {missing_dylibs}")
+
+    # ── parse manifest ─────────────────
 
     with open(SCRIPT_DIR / "manifest.toml", "rb") as f:
         manifest = tomllib.load(f)
@@ -85,129 +106,136 @@ def main():
     print(f"    runtime-transsolar  {runtime_transsolar_tag}  (local)")
     print()
 
-    # ── download core component artifacts ─────────────────────────────────────
+    # ── download core component artifacts ──
 
     print("==> Downloading core component artifacts from GitHub...")
     dl = SCRIPT_DIR / "dl"
     dl.mkdir(exist_ok=True)
 
     downloads = [
-        # macOS arm64
-        (kernel_tag,           "trnsys/kernel",           "kernel-macos-arm64-runtime.tar.gz"),
         (kernel_tag,           "trnsys/kernel",           "kernel-resources.tar.gz"),
-        (engine_tag,           "trnsys/engine",           "engine-macos-arm64-runtime.tar.gz"),
-        (standard_types_tag,   "trnsys/standard-types",   "standard-types-macos-arm64-runtime.tar.gz"),
-        (solar_calcs_tag,      "trnsys/solar-calcs",      "solar-calcs-macos-arm64-runtime.tar.gz"),
-        (fluid_properties_tag, "trnsys/fluid-properties", "fluid-properties-macos-arm64-runtime.tar.gz"),
-        (trnexe_tag,           "trnsys/trnexe",           "trnexe-macos-arm64-runtime.tar.gz"),
-        # Windows x64
-        (kernel_tag,           "trnsys/kernel",           "kernel-windows-x64-runtime.zip"),
-        (engine_tag,           "trnsys/engine",           "engine-windows-x64-runtime.zip"),
-        (standard_types_tag,   "trnsys/standard-types",   "standard-types-windows-x64-runtime.zip"),
-        (solar_calcs_tag,      "trnsys/solar-calcs",      "solar-calcs-windows-x64-runtime.zip"),
-        (fluid_properties_tag, "trnsys/fluid-properties", "fluid-properties-windows-x64-runtime.zip"),
-        (trnexe_tag,           "trnsys/trnexe",           "trnexe-windows-x64-runtime.zip"),
     ]
+    if build_macos:
+        downloads += [
+            (kernel_tag,           "trnsys/kernel",           "kernel-macos-arm64-runtime.tar.gz"),
+            (engine_tag,           "trnsys/engine",           "engine-macos-arm64-runtime.tar.gz"),
+            (standard_types_tag,   "trnsys/standard-types",   "standard-types-macos-arm64-runtime.tar.gz"),
+            (solar_calcs_tag,      "trnsys/solar-calcs",      "solar-calcs-macos-arm64-runtime.tar.gz"),
+            (fluid_properties_tag, "trnsys/fluid-properties", "fluid-properties-macos-arm64-runtime.tar.gz"),
+            (trnexe_tag,           "trnsys/trnexe",           "trnexe-macos-arm64-runtime.tar.gz"),
+        ]
+    if build_windows:
+        downloads += [
+            (kernel_tag,           "trnsys/kernel",           "kernel-windows-x64-runtime.zip"),
+            (engine_tag,           "trnsys/engine",           "engine-windows-x64-runtime.zip"),
+            (standard_types_tag,   "trnsys/standard-types",   "standard-types-windows-x64-runtime.zip"),
+            (solar_calcs_tag,      "trnsys/solar-calcs",      "solar-calcs-windows-x64-runtime.zip"),
+            (fluid_properties_tag, "trnsys/fluid-properties", "fluid-properties-windows-x64-runtime.zip"),
+            (trnexe_tag,           "trnsys/trnexe",           "trnexe-windows-x64-runtime.zip"),
+        ]
 
     for tag, repo, pattern in downloads:
         run(["gh", "release", "download", tag,
              "--repo", repo, "--pattern", pattern, "--clobber"], cwd=dl)
 
-    # ── assemble macOS arm64 bundle ────────────────────────────────────────────
-    # bin/ and resources/ only — no vendor runtime content on macOS.
-
-    print("==> Assembling macOS arm64 bundle...")
-    bundle_macos = SCRIPT_DIR / "bundle-macos"
-    if bundle_macos.exists():
-        shutil.rmtree(bundle_macos)
-    (bundle_macos / "bin").mkdir(parents=True)
-    (bundle_macos / "resources").mkdir(parents=True)
-
-    for name in [
-        "kernel-macos-arm64-runtime.tar.gz",
-        "engine-macos-arm64-runtime.tar.gz",
-        "standard-types-macos-arm64-runtime.tar.gz",
-        "solar-calcs-macos-arm64-runtime.tar.gz",
-        "fluid-properties-macos-arm64-runtime.tar.gz",
-        "trnexe-macos-arm64-runtime.tar.gz",
-    ]:
-        with tarfile.open(dl / name, "r:gz") as tf:
-            tf.extractall(bundle_macos / "bin")
-
-    with tarfile.open(dl / "kernel-resources.tar.gz", "r:gz") as tf:
-        tf.extractall(bundle_macos / "resources")
-
-    print("    macOS bundle contents:")
-    for p in sorted(bundle_macos.rglob("*")):
-        if p.is_file():
-            print(f"      {p.relative_to(bundle_macos)}")
-
-    # ── assemble Windows bundle ────────────────────────────────────────────────
-    # Exe/, Resources/ — core components
-    # Studio/          ← runtime-cstb/studio/
-    # Building/        ← runtime-transsolar/building/
-    # UserLib/         ← runtime-cstb/type/ + runtime-transsolar/type/ (merged)
-
-    print("==> Assembling Windows bundle...")
-    bundle_windows = SCRIPT_DIR / "bundle-windows"
-    if bundle_windows.exists():
-        shutil.rmtree(bundle_windows)
-    (bundle_windows / "Exe").mkdir(parents=True)
-    (bundle_windows / "Resources").mkdir(parents=True)
-
-    for name in [
-        "kernel-windows-x64-runtime.zip",
-        "engine-windows-x64-runtime.zip",
-        "standard-types-windows-x64-runtime.zip",
-        "solar-calcs-windows-x64-runtime.zip",
-        "fluid-properties-windows-x64-runtime.zip",
-        "trnexe-windows-x64-runtime.zip",
-    ]:
-        with zipfile.ZipFile(dl / name) as zf:
-            zf.extractall(bundle_windows / "Exe")
-
-    with tarfile.open(dl / "kernel-resources.tar.gz", "r:gz") as tf:
-        tf.extractall(bundle_windows / "Resources")
-
-    # Copy Intel Fortran runtime DLLs and license into Exe/
-    print("    Copying Intel Fortran runtime DLLs...")
-    for dll in INTEL_DLLS:
-        shutil.copy2(INTEL_RUNTIME / dll, bundle_windows / "Exe" / dll)
-    shutil.copy2(INTEL_RUNTIME / "LICENSE.txt", bundle_windows / "Exe" / "LICENSE-intel-fortran-runtime.txt")
-
-    shutil.copytree(RUNTIME_CSTB / "studio",        bundle_windows / "Studio")
-    shutil.copytree(RUNTIME_TRANSSOLAR / "building", bundle_windows / "Building")
-
-    userlib = bundle_windows / "UserLib"
-    userlib.mkdir()
-    shutil.copytree(RUNTIME_TRANSSOLAR / "type", userlib, dirs_exist_ok=True)
-
-    print("    Windows bundle contents:")
-    for p in sorted(bundle_windows.rglob("*")):
-        if p.is_file():
-            print(f"      {p.relative_to(bundle_windows)}")
-
-    # ── package ────────────────────────────────────────────────────────────────
+    # ── package ──────────────────────
 
     print("==> Packaging...")
 
-    macos_zip = SCRIPT_DIR / "trnsys-macos-arm64.zip"
-    with zipfile.ZipFile(macos_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    if build_macos:
+        print("==> Assembling macOS arm64 bundle...")
+        bundle_macos = SCRIPT_DIR / "bundle-macos"
+        if bundle_macos.exists():
+            shutil.rmtree(bundle_macos)
+        (bundle_macos / "bin").mkdir(parents=True)
+        (bundle_macos / "types").mkdir(parents=True)
+        (bundle_macos / "resources").mkdir(parents=True)
+
+        # Runtime binaries into bin/
+        for name in [
+            "kernel-macos-arm64-runtime.tar.gz",
+            "engine-macos-arm64-runtime.tar.gz",
+            "solar-calcs-macos-arm64-runtime.tar.gz",
+            "fluid-properties-macos-arm64-runtime.tar.gz",
+            "trnexe-macos-arm64-runtime.tar.gz",
+        ]:
+            with tarfile.open(dl / name, "r:gz") as tf:
+                tf.extractall(bundle_macos / "bin")
+
+        # Standard types into types/
+        with tarfile.open(dl / "standard-types-macos-arm64-runtime.tar.gz", "r:gz") as tf:
+            tf.extractall(bundle_macos / "types")
+
+        # gfortran runtime libs into bin/
+        print("    Copying gfortran runtime dylibs...")
+        for lib in GFORTRAN_DYLIBS:
+            shutil.copy2(GFORTRAN_RUNTIME / lib, bundle_macos / "bin" / lib)
+
+        with tarfile.open(dl / "kernel-resources.tar.gz", "r:gz") as tf:
+            tf.extractall(bundle_macos / "resources")
+
+        print("    macOS bundle contents:")
         for p in sorted(bundle_macos.rglob("*")):
             if p.is_file():
-                zf.write(p, p.relative_to(bundle_macos))
+                print(f"      {p.relative_to(bundle_macos)}")
 
-    windows_zip = SCRIPT_DIR / "trnsys-windows-x64.zip"
-    with zipfile.ZipFile(windows_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        macos_zip = SCRIPT_DIR / "trnsys-macos-arm64.zip"
+        with zipfile.ZipFile(macos_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for p in sorted(bundle_macos.rglob("*")):
+                if p.is_file():
+                    zf.write(p, p.relative_to(bundle_macos))
+
+    if build_windows:
+        print("==> Assembling Windows bundle...")
+        bundle_windows = SCRIPT_DIR / "bundle-windows"
+        if bundle_windows.exists():
+            shutil.rmtree(bundle_windows)
+        (bundle_windows / "Exe").mkdir(parents=True)
+        (bundle_windows / "Resources").mkdir(parents=True)
+
+        for name in [
+            "kernel-windows-x64-runtime.zip",
+            "engine-windows-x64-runtime.zip",
+            "standard-types-windows-x64-runtime.zip",
+            "solar-calcs-windows-x64-runtime.zip",
+            "fluid-properties-windows-x64-runtime.zip",
+            "trnexe-windows-x64-runtime.zip",
+        ]:
+            with zipfile.ZipFile(dl / name) as zf:
+                zf.extractall(bundle_windows / "Exe")
+
+        with tarfile.open(dl / "kernel-resources.tar.gz", "r:gz") as tf:
+            tf.extractall(bundle_windows / "Resources")
+
+        # Copy Intel Fortran runtime DLLs and license into Exe/
+        print("    Copying Intel Fortran runtime DLLs...")
+        for dll in INTEL_DLLS:
+            shutil.copy2(INTEL_RUNTIME / dll, bundle_windows / "Exe" / dll)
+        shutil.copy2(INTEL_RUNTIME / "LICENSE.txt", bundle_windows / "Exe" / "LICENSE-intel-fortran-runtime.txt")
+
+        shutil.copytree(RUNTIME_CSTB / "studio",        bundle_windows / "Studio")
+        shutil.copytree(RUNTIME_TRANSSOLAR / "building", bundle_windows / "Building")
+
+        userlib = bundle_windows / "UserLib"
+        userlib.mkdir()
+        shutil.copytree(RUNTIME_TRANSSOLAR / "type", userlib, dirs_exist_ok=True)
+
+        print("    Windows bundle contents:")
         for p in sorted(bundle_windows.rglob("*")):
             if p.is_file():
-                zf.write(p, p.relative_to(bundle_windows))
+                print(f"      {p.relative_to(bundle_windows)}")
+
+        windows_zip = SCRIPT_DIR / "trnsys-windows-x64.zip"
+        with zipfile.ZipFile(windows_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for p in sorted(bundle_windows.rglob("*")):
+                if p.is_file():
+                    zf.write(p, p.relative_to(bundle_windows))
 
     print("    Packages:")
     for p in sorted(SCRIPT_DIR.glob("trnsys-*.zip")):
         print(f"      {p.stat().st_size / 1024 / 1024:.1f}M  {p.name}")
 
-    # ── checksums ──────────────────────────────────────────────────────────────
+    # ── checksums ─────────────────────
 
     print("==> Generating checksums...")
     zips = sorted(SCRIPT_DIR.glob("trnsys-*.zip"))
@@ -219,7 +247,7 @@ def main():
     for line in checksums.splitlines():
         print(f"      {line}")
 
-    # ── instructions ───────────────────────────────────────────────────────────
+    # ── instructions ─────────────────
 
     tag = f"v{version}"
     print()
@@ -228,13 +256,14 @@ def main():
     print(f"    cd {SCRIPT_DIR}")
     print(f"    git tag {tag} && git push origin {tag}")
     print()
+    assets = sorted(SCRIPT_DIR.glob("trnsys-*.zip")) + [SCRIPT_DIR / "SHA256SUMS.txt"]
     print(f"    gh release create {tag} \\")
     print(f"      --repo trnsys/releases \\")
     print(f'      --title "TRNSYS {version}" \\')
     print(f"      --generate-notes \\")
-    print(f"      trnsys-macos-arm64.zip \\")
-    print(f"      trnsys-windows-x64.zip \\")
-    print(f"      SHA256SUMS.txt")
+    for asset in assets:
+        suffix = " \\" if asset != assets[-1] else ""
+        print(f"      {asset.name}{suffix}")
     print()
 
 
