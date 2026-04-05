@@ -14,10 +14,8 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Check out manifest
+        uses: actions/checkout@v6
 
       - name: Generate token
         id: app-token
@@ -26,33 +24,24 @@ jobs:
           app-id: ${{ secrets.TRN_RELEASE_APP_ID }}
           private-key: ${{ secrets.TRN_RELEASE_APP_KEY }}
           owner: trnsys
-          repositories: kernel,engine,standard-types,solar-calcs,fluid-properties,trnexe,runtime-cstb,runtime-transsolar,build-tools
 
-      - name: Check out build-tools
-        uses: actions/checkout@v6
+      - name: Assemble macOS
+        uses: trnsys/build-tools/.github/actions/bundle-assemble@v0.5.1
         with:
-          repository: trnsys/build-tools
-          ref: v0.5.0
+          platform: macos
           token: ${{ steps.app-token.outputs.token }}
-          path: .build-tools
 
-      - name: Install build-tools
-        run: uv pip install --system ./.build-tools
+      - name: Assemble Windows
+        uses: trnsys/build-tools/.github/actions/bundle-assemble@v0.5.1
+        with:
+          platform: windows
+          token: ${{ steps.app-token.outputs.token }}
 
-      - name: Assemble macOS arm64
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: python -m trnsys_bundle assemble macos
-
-      - name: Assemble Windows x64
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: python -m trnsys_bundle assemble windows
-
-      - name: Assemble Linux x64
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: python -m trnsys_bundle assemble linux
+      - name: Assemble Linux
+        uses: trnsys/build-tools/.github/actions/bundle-assemble@v0.5.1
+        with:
+          platform: linux
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/')
