@@ -25,23 +25,40 @@ jobs:
           private-key: ${{ secrets.TRN_RELEASE_APP_KEY }}
           owner: trnsys
 
-      - name: Assemble macOS
-        uses: trnsys/build-tools/.github/actions/bundle-assemble@v0.5.1
+      - name: Check out build-tools
+        uses: actions/checkout@v6
         with:
-          platform: macos
+          repository: trnsys/build-tools
+          ref: v0.5.2
           token: ${{ steps.app-token.outputs.token }}
+          path: .build-tools
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Create Python environment
+        run: uv venv
+
+      - name: Install build-tools
+        run: uv pip install ./.build-tools
+
+      - name: Assemble macOS
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: uv run python -m trnsys_bundle assemble macos
 
       - name: Assemble Windows
-        uses: trnsys/build-tools/.github/actions/bundle-assemble@v0.5.1
-        with:
-          platform: windows
-          token: ${{ steps.app-token.outputs.token }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: uv run python -m trnsys_bundle assemble windows
 
       - name: Assemble Linux
-        uses: trnsys/build-tools/.github/actions/bundle-assemble@v0.5.1
-        with:
-          platform: linux
-          token: ${{ steps.app-token.outputs.token }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: uv run python -m trnsys_bundle assemble linux
 
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/')
