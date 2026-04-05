@@ -1,18 +1,30 @@
 # TRNSYS Release Manifest
 #
 # Pins component versions for bundle assembly.
-# The assembly workflow reads this file to know which version of each component to fetch.
-# Update versions here, commit, then tag to trigger a new release.
+# driven by trnsys_bundle v0.5.0
 
 [release]
-version = "19.0.0-alpha.4"
+version = "19.0.0-alpha.9"
 
 [components]
-kernel = "v0.2.1"
-engine = "v0.2.1"
-standard-types = "v0.1.0"
-solar-calcs = "v0.1.0"
-fluid-properties = "v0.1.0"
-trnexe = "v0.2.0"
+kernel = "v0.3.2"
+engine = "v0.3.2"
+standard-types = "v0.2.0"
+solar-calcs = "v0.2.0"
+fluid-properties = "v0.2.0"
+trnexe = "v0.3.3"
 runtime-cstb = "v1.0.0"
 runtime-transsolar = "v1.0.0"
+
+[layout]
+bin = ["kernel", "engine", "solar-calcs", "fluid-properties", "trnexe", "standard-types"]
+resources = ["kernel-resources"]
+
+[platforms]
+macos = { arch = "arm64", bin = "bin", resources = "resources" }
+windows = { arch = "x64", bin = "Exe", resources = "Resources" }
+linux = { arch = "x64", bin = "bin", resources = "resources" }
+
+[vendor.windows]
+runtime-cstb = { studio = "Studio" }
+runtime-transsolar = { building = "Building", type = "Exe" }

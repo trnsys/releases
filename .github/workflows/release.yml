@@ -1,10 +1,14 @@
 name: Assemble release
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   assemble:
-    name: Assemble TRNSYS bundle
+    name: Assemble TRNSYS bundles
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -12,19 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Parse manifest
-        id: manifest
-        run: |
-          # Extract version and component tags from manifest.toml
-          version=$(grep '^version' manifest.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-          for component in kernel engine standard-types solar-calcs fluid-properties trnexe runtime-cstb runtime-transsolar; do
-            tag=$(grep "^${component} " manifest.toml | sed 's/.*= *"\(.*\)"/\1/')
-            # Normalize key: standard-types -> standard_types
-            key=$(echo "$component" | tr '-' '_')
-            echo "${key}_tag=$tag" >> "$GITHUB_OUTPUT"
-          done
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Generate token
         id: app-token
@@ -33,151 +26,44 @@ jobs:
           app-id: ${{ secrets.TRN_RELEASE_APP_ID }}
           private-key: ${{ secrets.TRN_RELEASE_APP_KEY }}
           owner: trnsys
-          repositories: kernel,engine,standard-types,solar-calcs,fluid-properties,trnexe,runtime-cstb,runtime-transsolar
+          repositories: kernel,engine,standard-types,solar-calcs,fluid-properties,trnexe,runtime-cstb,runtime-transsolar,build-tools
 
-      - name: Download component artifacts
+      - name: Check out build-tools
+        uses: actions/checkout@v6
+        with:
+          repository: trnsys/build-tools
+          ref: v0.5.0
+          token: ${{ steps.app-token.outputs.token }}
+          path: .build-tools
+
+      - name: Install build-tools
+        run: uv pip install --system ./.build-tools
+
+      - name: Assemble macOS arm64
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          mkdir -p dl
+        run: python -m trnsys_bundle assemble macos
 
-          # ── macOS arm64 runtime artifacts ──
-          gh release download ${{ steps.manifest.outputs.kernel_tag }} \
-            --repo trnsys/kernel \
-            --pattern "kernel-macos-arm64-runtime.tar.gz" --dir dl/
+      - name: Assemble Windows x64
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: python -m trnsys_bundle assemble windows
 
-          gh release download ${{ steps.manifest.outputs.kernel_tag }} \
-            --repo trnsys/kernel \
-            --pattern "kernel-resources.tar.gz" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.engine_tag }} \
-            --repo trnsys/engine \
-            --pattern "engine-macos-arm64-runtime.tar.gz" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.standard_types_tag }} \
-            --repo trnsys/standard-types \
-            --pattern "standard-types-macos-arm64-runtime.tar.gz" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.solar_calcs_tag }} \
-            --repo trnsys/solar-calcs \
-            --pattern "solar_calcs-macos-runtime.tar.gz" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.fluid_properties_tag }} \
-            --repo trnsys/fluid-properties \
-            --pattern "fluid-properties-macos-arm64-runtime.tar.gz" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.trnexe_tag }} \
-            --repo trnsys/trnexe \
-            --pattern "trnexe-macos-arm64-runtime.tar.gz" --dir dl/
-
-          # ── Windows runtime artifacts ──
-          gh release download ${{ steps.manifest.outputs.kernel_tag }} \
-            --repo trnsys/kernel \
-            --pattern "kernel-windows-runtime.zip" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.engine_tag }} \
-            --repo trnsys/engine \
-            --pattern "engine-windows-runtime.zip" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.standard_types_tag }} \
-            --repo trnsys/standard-types \
-            --pattern "standard-types-windows-runtime.zip" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.solar_calcs_tag }} \
-            --repo trnsys/solar-calcs \
-            --pattern "solar_calcs-windows-runtime.zip" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.fluid_properties_tag }} \
-            --repo trnsys/fluid-properties \
-            --pattern "fluid-properties-windows-x64-runtime.zip" --dir dl/
-
-          gh release download ${{ steps.manifest.outputs.trnexe_tag }} \
-            --repo trnsys/trnexe \
-            --pattern "trnexe-windows-runtime.zip" --dir dl/
-
-          # ── vendor runtime repo archives ──
-          gh api repos/trnsys/runtime-cstb/tarball/${{ steps.manifest.outputs.runtime_cstb_tag }} \
-            > dl/runtime-cstb.tar.gz
-
-          gh api repos/trnsys/runtime-transsolar/tarball/${{ steps.manifest.outputs.runtime_transsolar_tag }} \
-            > dl/runtime-transsolar.tar.gz
-
-      - name: Assemble macOS arm64 bundle
-        run: |
-          mkdir -p bundle-macos/{bin,resources}
-
-          # Extract binaries into bin/
-          tar -xzf dl/kernel-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
-          tar -xzf dl/engine-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
-          tar -xzf dl/standard-types-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
-          tar -xzf dl/solar_calcs-macos-runtime.tar.gz -C bundle-macos/bin/
-          tar -xzf dl/fluid-properties-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
-          tar -xzf dl/trnexe-macos-arm64-runtime.tar.gz -C bundle-macos/bin/
-
-          # Extract resources
-          tar -xzf dl/kernel-resources.tar.gz -C bundle-macos/resources/
-
-          echo "=== macOS arm64 bundle ==="
-          find bundle-macos -type f | sort
-
-      - name: Assemble Windows bundle
-        run: |
-          mkdir -p bundle-windows/{Exe,Resources}
-
-          # Extract binaries into Exe/
-          cd bundle-windows/Exe
-          unzip -o ../../dl/kernel-windows-runtime.zip
-          unzip -o ../../dl/engine-windows-runtime.zip
-          unzip -o ../../dl/standard-types-windows-runtime.zip
-          unzip -o ../../dl/solar_calcs-windows-runtime.zip
-          unzip -o ../../dl/fluid-properties-windows-x64-runtime.zip
-          unzip -o ../../dl/trnexe-windows-runtime.zip
-          cd ../..
-
-          # Extract resources
-          tar -xzf dl/kernel-resources.tar.gz -C bundle-windows/Resources/
-
-          # ── vendor runtime content ──
-
-          # Extract runtime-cstb archive (GitHub tarball has a top-level prefix dir)
-          mkdir -p dl/runtime-cstb-src
-          tar -xzf dl/runtime-cstb.tar.gz -C dl/runtime-cstb-src/ --strip-components=1
-
-          # Extract runtime-transsolar archive
-          mkdir -p dl/runtime-transsolar-src
-          tar -xzf dl/runtime-transsolar.tar.gz -C dl/runtime-transsolar-src/ --strip-components=1
-
-          # Copy Intel Fortran runtime DLLs and license into Exe/
-          cp intel-fortran-runtime/*.dll            bundle-windows/Exe/
-          cp intel-fortran-runtime/LICENSE.txt      bundle-windows/Exe/LICENSE-intel-fortran-runtime.txt
-
-          cp -r dl/runtime-cstb-src/studio        bundle-windows/Studio
-          cp -r dl/runtime-transsolar-src/building bundle-windows/Building
-
-          mkdir -p bundle-windows/UserLib
-          cp -r dl/runtime-transsolar-src/type/.   bundle-windows/UserLib/
-
-          echo "=== Windows bundle ==="
-          find bundle-windows -type f | sort
-
-      - name: Package bundles
-        run: |
-          cd bundle-macos && zip -r ../trnsys-macos-arm64.zip . && cd ..
-          cd bundle-windows && zip -r ../trnsys-windows-x64.zip . && cd ..
-
-          echo "=== Final packages ==="
-          ls -lh trnsys-*.zip
-
-      - name: Generate checksums
-        run: sha256sum trnsys-*.zip > SHA256SUMS.txt
+      - name: Assemble Linux x64
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: python -m trnsys_bundle assemble linux
 
       - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION=$(grep '^version' manifest.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
           gh release create "$GITHUB_REF_NAME" \
-            --title "TRNSYS ${{ steps.manifest.outputs.version }}" \
+            --title "TRNSYS $VERSION" \
             --generate-notes \
             trnsys-macos-arm64.zip \
             trnsys-windows-x64.zip \
+            trnsys-linux-x64.zip \
             SHA256SUMS.txt
