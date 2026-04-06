@@ -69,7 +69,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "TRNSYS $VERSION" \
             --generate-notes \
-            trnsys-macos-arm64.zip \
+            trnsys-macos-arm64.tar.gz \
             trnsys-windows-x64.zip \
-            trnsys-linux-x64.zip \
+            trnsys-linux-x64.tar.gz \
             SHA256SUMS.txt
