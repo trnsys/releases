@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: trnsys/build-tools
-          ref: v0.8.0
+          ref: v0.8.1
           token: ${{ steps.app-token.outputs.token }}
           path: .build-tools
 
@@ -80,5 +80,5 @@ jobs:
             trnsys-macos-arm64.tar.gz \
             trnsys-windows-x64.zip \
             trnsys-linux-x64.tar.gz \
-            trnsys-coredev-overlay-windows-x64.zip \
+            coredev-overlay-windows-x64.zip \
             SHA256SUMS.txt
