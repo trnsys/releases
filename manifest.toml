@@ -1,5 +1,5 @@
 [release]
-version = "19.0.0-alpha.18"
+version = "19.0.0-alpha.19"
 
 [components]
 kernel = "v0.3.3"
@@ -28,4 +28,4 @@ target = "Studio"
 [vendor.windows.runtime-transsolar]
 kind = "release-asset"
 asset = "transsolar.zip"
-target = "Transsolar"
+target = "Building"
