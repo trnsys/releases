@@ -1,0 +1,106 @@
+VERSION 18
+
+*******************************************************************************
+*** TankCooling - Example 1 of the curated TRNSYS 19 example set.
+***
+*** A stratified water tank (Type 158, 10 isothermal nodes) starts at 80 C and
+*** cools toward a 20 C ambient through uniform loss coefficients on its top,
+*** edges, and bottom.  No external data files, no flow, no auxiliary heat -
+*** just the minimum structure needed to exercise the TRNSYS kernel.
+***
+*** Expected behavior: the top and bottom nodes lose heat both through their
+*** end caps AND through their portion of the edge surface, so they cool
+*** faster than interior nodes.  Inter-node conduction (parameter 9) partially
+*** smears the profile but cannot eliminate it.  Over a 48 h run the tank
+*** average temperature drops noticeably without reaching equilibrium, and
+*** T_top and T_bottom track below T_middle throughout.
+*******************************************************************************
+
+CONSTANTS 3
+START = 0
+STOP  = 48
+STEP  = 0.125
+
+SIMULATION START STOP STEP
+TOLERANCES 0.001 0.001
+LIMITS 30 30 30
+DFQ 1
+WIDTH 80
+LIST
+SOLVER 0 1 1
+NAN_CHECK 0
+OVERWRITE_CHECK 0
+TIME_REPORT 0
+EQSOLVER 1
+
+EQUATIONS 2
+T_ambient = 20
+T_initial = 80
+
+UNIT 1 TYPE 158	 Tank
+PARAMETERS 15
+0.3		! 1  Tank volume [m3]
+1.5		! 2  Tank height [m]
+10		! 3  Number of tank nodes
+2.5		! 4  Top loss coefficient [kJ/h.m2.K]
+2.5		! 5  Edge loss coefficient [kJ/h.m2.K]
+2.5		! 6  Bottom loss coefficient [kJ/h.m2.K]
+4.19		! 7  Fluid specific heat [kJ/kg.K]
+1000		! 8  Fluid density [kg/m3]
+2.224		! 9  Fluid thermal conductivity [kJ/h.m.K]
+1.0		! 10 Height fraction of inlet 1
+0.0		! 11 Height fraction of outlet 1
+0.0		! 12 Height fraction of inlet 2
+1.0		! 13 Height fraction of outlet 2
+0		! 14 Number of thermostats
+0		! 15 Number of auxiliary heat inputs
+INPUTS 7
+0,0		! Inlet temperature port 1
+0,0		! Inlet flow rate port 1
+0,0		! Inlet temperature port 2
+0,0		! Inlet flow rate port 2
+T_ambient	! Top loss temperature
+T_ambient	! Edge loss temperature
+T_ambient	! Bottom loss temperature
+*** INITIAL INPUT VALUES
+20. 0. 20. 0. 20. 20. 20.
+DERIVATIVES 10
+80.
+80.
+80.
+80.
+80.
+80.
+80.
+80.
+80.
+80.
+
+UNIT 2 TYPE 65	 Plotter
+PARAMETERS 12
+5		! 1  Nb. of left-axis variables
+0		! 2  Nb. of right-axis variables
+0		! 3  Left axis minimum
+100		! 4  Left axis maximum
+0		! 5  Right axis minimum (unused)
+100		! 6  Right axis maximum (unused)
+1		! 7  Number of plots per simulation
+7		! 8  X-axis gridpoints
+0		! 9  Shut off online w/o removing
+-1		! 10 Logical unit for output file
+0		! 11 Output file units
+0		! 12 Output file delimiter
+INPUTS 5
+1,14		! Tank node 1 (top)
+1,18		! Tank node 5 (middle)
+1,23		! Tank node 10 (bottom)
+1,5		! Tank average
+T_ambient	! Ambient reference
+*** INITIAL INPUT VALUES
+T_top T_mid T_bot T_avg T_amb
+LABELS 3
+"Temperature [C]"
+""
+"Tank stratified cooling"
+
+END
