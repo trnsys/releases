@@ -1,10 +1,10 @@
 [release]
-version = "19.0.0-alpha.21"
+version = "19.0.0-alpha.22"
 
 [components]
 kernel = "v0.3.3"
 engine = "v0.3.3"
-standard-types = "v0.2.0"
+standard-types = "v0.3.0"
 solar-calcs = "v0.2.0"
 fluid-properties = "v0.2.0"
 trnexe = "v0.3.4"
