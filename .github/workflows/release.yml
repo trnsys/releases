@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: trnsys/build-tools
-          ref: v0.10.0
+          ref: v0.11.0
           token: ${{ steps.app-token.outputs.token }}
           path: .build-tools
 
@@ -68,6 +68,14 @@ jobs:
             --composition .build-tools/scaffolds/coredev/coredev.toml \
             --repo-root .
 
+      - name: Assemble TypeDev overlay
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          uv run python -m trnsys_bundle assemble-typedev-overlay \
+            --composition .build-tools/scaffolds/typedev/typedev.toml \
+            --repo-root .
+
       - name: Create release
         if: startsWith(github.ref, 'refs/tags/')
         env:
@@ -81,4 +89,5 @@ jobs:
             trnsys-windows-x64.zip \
             trnsys-linux-x64.tar.gz \
             coredev-overlay-windows-x64.zip \
+            typedev-overlay-windows-x64.zip \
             SHA256SUMS.txt
