@@ -1,5 +1,5 @@
 [release]
-version = "19.0.0-alpha.20"
+version = "19.0.0-alpha.21"
 
 [components]
 kernel = "v0.3.3"
@@ -8,7 +8,7 @@ standard-types = "v0.2.0"
 solar-calcs = "v0.2.0"
 fluid-properties = "v0.2.0"
 trnexe = "v0.3.4"
-runtime-cstb = "v1.1.0"
+runtime-cstb = "v1.2.0"
 runtime-transsolar = "v1.1.0"
 
 [layout]
