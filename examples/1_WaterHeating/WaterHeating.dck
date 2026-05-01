@@ -1,0 +1,136 @@
+VERSION 18
+
+*******************************************************************************
+*** WaterHeating - Example 1 of the curated TRNSYS 19 example set.
+***
+*** A stratified water tank (Type 158, 5 isothermal nodes) with an immersed
+*** auxiliary heater controlled by a thermostat (Type 2).  A constant load
+*** draws water from the bottom and returns cold water to the top.  No
+*** external data files, no weather, no schedules - the smallest realistic
+*** feedback-control system the kernel can run.
+***
+*** Components:
+***   Type 158 (Tank)        - 5 nodes, one thermostat, one aux heater
+***   Type 2   (Thermostat)  - on/off control with hysteresis
+***   Type 65  (Plotter)     - tank temps + control signal
+***
+*** Expected behavior: tank starts cold (20 C), heater fires to drive the
+*** tank toward setpoint (60 C), then cycles through hysteresis as the
+*** constant load extracts heat.  Plot shows the temperature rise, the
+*** on/off heater pattern, and the steady-state oscillation around setpoint.
+***
+*** This deck is also the demo target for TypeDev: a TypeDev installation
+*** can override Type 2 with a custom thermostat (MyType2) to change the
+*** control logic.  Load order (user-list shadows bundled) determines which
+*** Type 2 actually loads at simulation time.
+*******************************************************************************
+
+CONSTANTS 3
+START = 0
+STOP  = 48
+STEP  = 0.125
+
+SIMULATION START STOP STEP
+TOLERANCES 0.001 0.001
+LIMITS 30 30 30
+DFQ 1
+WIDTH 80
+LIST
+SOLVER 0 1 1
+NAN_CHECK 0
+OVERWRITE_CHECK 0
+TIME_REPORT 0
+EQSOLVER 1
+
+EQUATIONS 6
+T_set    = 60
+T_amb    = 20
+Q_aux    = 5000              ! kJ/h, full heater power
+m_load   = 8                 ! kg/h, constant load extraction
+T_cold   = 15                ! C, cold-water inlet to the tank
+Q_heater = [2,1] * Q_aux     ! Type 2's control signal scaled to heater power
+
+UNIT 1 TYPE 158	 Tank
+PARAMETERS 17
+0.3		! 1  Tank volume [m3]
+1.5		! 2  Tank height [m]
+5		! 3  Number of tank nodes
+2.5		! 4  Top loss coefficient [kJ/h.m2.K]
+2.5		! 5  Edge loss coefficient [kJ/h.m2.K]
+2.5		! 6  Bottom loss coefficient [kJ/h.m2.K]
+4.19		! 7  Fluid specific heat [kJ/kg.K]
+1000		! 8  Fluid density [kg/m3]
+2.224		! 9  Fluid thermal conductivity [kJ/h.m.K]
+1.0		! 10 Height fraction of inlet 1 (cold water in at top)
+0.0		! 11 Height fraction of outlet 1 (hot water out at bottom)
+0.0		! 12 Height fraction of inlet 2 (unused)
+1.0		! 13 Height fraction of outlet 2 (unused)
+1		! 14 Number of thermostats
+0.5		! 15 Height fraction of thermostat 1 (mid-tank)
+1		! 16 Number of auxiliary heat inputs
+0.5		! 17 Height fraction of aux heater 1 (mid-tank)
+INPUTS 8
+T_cold		! Inlet temperature port 1 (cold water replacing draw)
+m_load		! Inlet flow rate port 1
+0,0		! Inlet temperature port 2 (unused)
+0,0		! Inlet flow rate port 2 (unused)
+T_amb		! Top loss temperature
+T_amb		! Edge loss temperature
+T_amb		! Bottom loss temperature
+Q_heater	! Aux heater power (kJ/h) - control signal scaled by Q_aux via EQUATIONS
+*** INITIAL INPUT VALUES
+15. 50. 20. 0. 20. 20. 20. 0.
+DERIVATIVES 5
+20.
+20.
+20.
+20.
+20.
+*** Five nodes all start at 20 C.
+
+UNIT 2 TYPE 2	 Thermostat
+PARAMETERS 2
+10		! 1 NSTK - sticking-check count (Solver 0)
+90		! 2 Tmax - max-temp shutoff threshold [C]
+INPUTS 6
+T_set		! T1 - upper input (setpoint signal)
+1,14		! T2 - lower input (tank temp at thermostat, Type 158 output 14)
+1,14		! T3 - monitoring temperature for max-temp cutoff
+0,0		! Incoming control function (initial state 0 = off)
+0,0		! Upper dead band - switch ON when T1 - T2 > 5 (tank < setpoint - 5)
+0,0		! Lower dead band - switch OFF when T1 - T2 < 0 (tank > setpoint)
+*** INITIAL INPUT VALUES
+60. 20. 20. 0. 5. 0.
+*** First output of Type 2 (output 1) is the control signal, scaled below
+*** to drive the tank's aux heater input.  When standard Type 2 is loaded
+*** the control follows hysteresis.  When MyType2 (TypeDev override) is
+*** loaded its own logic runs in this Unit's place.
+
+UNIT 3 TYPE 65	 Plotter
+PARAMETERS 12
+4		! 1  Nb. of left-axis variables (temperatures)
+1		! 2  Nb. of right-axis variables (control signal)
+0		! 3  Left axis minimum
+100		! 4  Left axis maximum
+0		! 5  Right axis minimum
+1		! 6  Right axis maximum
+1		! 7  Number of plots per simulation
+7		! 8  X-axis gridpoints
+0		! 9  Shut off online w/o removing
+-1		! 10 Logical unit for output file
+0		! 11 Output file units
+0		! 12 Output file delimiter
+INPUTS 5
+1,5		! Tank average
+1,14		! Thermostat reading
+T_set		! Setpoint reference line
+T_amb		! Ambient reference line
+2,1		! Type 2 control signal (right axis)
+*** INITIAL INPUT VALUES
+T_avg T_thermostat T_set T_ambient control
+LABELS 3
+"Temperature [C]"
+"Control [0/1]"
+"Tank with thermostat-controlled heater"
+
+END
